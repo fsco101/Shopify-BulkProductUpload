@@ -1,31 +1,3 @@
-
-/**
- *  Reads products from a local CSV file and uploads them to your Shopify
- *  store via the Admin REST API. Supports multi-variant products, images,
- *  tags, and automatic handle generation.
- *
- *  Usage:
- *    node upload-products.js              — Upload all products
- *    node upload-products.js --dry-run    — Parse & validate only (no API calls)
- *
- * ─── HOW TO GET YOUR ADMIN API ACCESS TOKEN ─────────────────────────────
- *
- *  1. Log in to your Shopify Admin (https://your-store.myshopify.com/admin)
- *  2. Go to  Settings → Apps and sales channels
- *  3. Click "Develop apps"
- *       → If prompted, click "Allow custom app development" first
- *  4. Click "Create an app" → name it (e.g. "Product Uploader")
- *  5. Go to  Configuration → Admin API integration
- *  6. Enable these scopes:
- *       ✔ write_products
- *       ✔ read_products
- *  7. Click "Save" → then the "Install app" button
- *  8. Under "API credentials", reveal and copy the Admin API access token
- *
- *  ⚠️  The token is shown ONLY ONCE — store it in your .env file immediately.
- *
- */
-
 require('dotenv').config();
 require('@shopify/shopify-api/adapters/node');
 
@@ -43,11 +15,12 @@ const DRY_RUN = process.argv.includes('--dry-run');
 // ─── Validate Environment ───────────────────────────────────────────────────
 
 const STORE_URL = (process.env.SHOPIFY_STORE_URL || '').trim();
-const ACCESS_TOKEN = (process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN || '').trim();
+const CLIENT_ID = (process.env.SHOPIFY_CLIENT_ID || '').trim();
+const CLIENT_SECRET = (process.env.SHOPIFY_CLIENT_SECRET || '').trim();
 
-if (!DRY_RUN && (!STORE_URL || !ACCESS_TOKEN)) {
+if (!DRY_RUN && (!STORE_URL || !CLIENT_ID || !CLIENT_SECRET)) {
   console.error('\n❌ Missing required environment variables.');
-  console.error('   Set SHOPIFY_STORE_URL and SHOPIFY_ADMIN_API_ACCESS_TOKEN in .env');
+  console.error('   Set SHOPIFY_STORE_URL, SHOPIFY_CLIENT_ID, and SHOPIFY_CLIENT_SECRET in .env');
   console.error('   See .env.example for details.\n');
   process.exit(1);
 }
@@ -65,21 +38,78 @@ const storeDomain = STORE_URL
   .replace(/^https?:\/\//, '')
   .replace(/\/+$/, '');
 
-let shopifyClient = null;
+let shopifyInstance = null;
 
 if (!DRY_RUN) {
-  const shopify = shopifyApi({
-    apiSecretKey: 'custom-app-no-secret-needed',
+  shopifyInstance = shopifyApi({
+    apiSecretKey: CLIENT_SECRET,
     apiVersion: LATEST_API_VERSION,
     isCustomStoreApp: true,
-    adminApiAccessToken: ACCESS_TOKEN,
     hostName: storeDomain,
     isEmbeddedApp: false,
     logger: { level: 0 }, // Suppress noisy SDK debug logs
   });
+}
 
-  const session = shopify.session.customAppSession(storeDomain);
-  shopifyClient = new shopify.clients.Rest({ session });
+// ─── Token Fetching & Caching ───────────────────────────────────────────────
+
+let cachedToken = null;
+let tokenExpiresAt = null;
+
+/**
+ * Gets a valid Shopify access token using the Client Credentials Grant.
+ * Caches the token and automatically refreshes it if it expires within 5 minutes.
+ */
+async function getAccessToken() {
+  if (DRY_RUN) return 'dry-run-token';
+
+  const now = Date.now();
+  // Check if token exists and is valid for at least 5 minutes (300,000 ms)
+  if (cachedToken && tokenExpiresAt && (tokenExpiresAt - now > 5 * 60 * 1000)) {
+    return cachedToken;
+  }
+
+  console.log('🔑 Requesting new Shopify access token via Client Credentials grant...');
+
+  try {
+    const url = `https://${storeDomain}/admin/oauth/access_token`;
+    const params = new URLSearchParams();
+    params.append('grant_type', 'client_credentials');
+    params.append('client_id', CLIENT_ID);
+    params.append('client_secret', CLIENT_SECRET);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorBody}`);
+    }
+
+    const data = await response.json();
+    if (!data.access_token) {
+      throw new Error('No access_token returned in response.');
+    }
+
+    cachedToken = data.access_token;
+
+    // Shopify client credentials tokens expire in 24 hours.
+    // If expires_in is provided in response, use it, otherwise default to 24 hours (86400s)
+    const expiresInSeconds = data.expires_in || 86400;
+    tokenExpiresAt = now + (expiresInSeconds * 1000);
+
+    console.log('🔑 New access token successfully retrieved and cached.');
+    return cachedToken;
+  } catch (error) {
+    console.error('\n❌ Fatal: Failed to retrieve Shopify access token.');
+    console.error(`   Error details: ${error.message}\n`);
+    process.exit(1);
+  }
 }
 
 // ─── Handle Generation ──────────────────────────────────────────────────────
@@ -281,7 +311,15 @@ function validateProducts(products) {
  * POST /admin/api/{version}/products.json
  */
 async function createProduct(productData) {
-  const response = await shopifyClient.post({
+  const token = await getAccessToken();
+
+  // Create a new session dynamically with the retrieved token
+  const session = shopifyInstance.session.customAppSession(storeDomain);
+  session.accessToken = token;
+
+  const client = new shopifyInstance.clients.Rest({ session });
+
+  const response = await client.post({
     path: 'products',
     data: { product: productData },
   });
