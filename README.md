@@ -5,7 +5,11 @@
 SHOPIFY_STORE_URL=xxxxxxxxxxxxxxx (replace with real Store Url)
 
 # Custom App Client Credentials
+
 SHOPIFY_CLIENT_ID=xxxxxxxxxxxxxx (replace with real Client Id)
+
+
+
 SHOPIFY_CLIENT_SECRET=xxxxxxxxxxxx (replace with real Client Secret)
  
  
