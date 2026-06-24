@@ -1,10 +1,5 @@
-#!/usr/bin/env node
 
 /**
- * ═══════════════════════════════════════════════════════════════════════════
- *  Shopify Product Bulk Uploader
- * ═══════════════════════════════════════════════════════════════════════════
- *
  *  Reads products from a local CSV file and uploads them to your Shopify
  *  store via the Admin REST API. Supports multi-variant products, images,
  *  tags, and automatic handle generation.
@@ -29,7 +24,6 @@
  *
  *  ⚠️  The token is shown ONLY ONCE — store it in your .env file immediately.
  *
- * ═══════════════════════════════════════════════════════════════════════════
  */
 
 require('dotenv').config();
@@ -176,21 +170,21 @@ function groupRowsIntoProducts(rows) {
     const variant = {};
 
     // Price (required — map "Variant Price" → price)
-    if (row['Variant Price'])             variant.price = row['Variant Price'].toString();
-    if (row['Variant Compare At Price'])  variant.compare_at_price = row['Variant Compare At Price'].toString();
+    if (row['Variant Price']) variant.price = row['Variant Price'].toString();
+    if (row['Variant Compare At Price']) variant.compare_at_price = row['Variant Compare At Price'].toString();
 
     // Identifiers
-    if (row['Variant SKU'])               variant.sku = row['Variant SKU'];
-    if (row['Variant Barcode'])           variant.barcode = row['Variant Barcode'];
+    if (row['Variant SKU']) variant.sku = row['Variant SKU'];
+    if (row['Variant Barcode']) variant.barcode = row['Variant Barcode'];
 
     // Inventory
-    if (row['Variant Inventory Qty'])     variant.inventory_quantity = parseInt(row['Variant Inventory Qty'], 10);
-    if (row['Variant Inventory Policy'])  variant.inventory_policy = row['Variant Inventory Policy'].toLowerCase();
+    if (row['Variant Inventory Qty']) variant.inventory_quantity = parseInt(row['Variant Inventory Qty'], 10);
+    if (row['Variant Inventory Policy']) variant.inventory_policy = row['Variant Inventory Policy'].toLowerCase();
     if (row['Variant Fulfillment Service']) variant.fulfillment_service = row['Variant Fulfillment Service'].toLowerCase();
 
     // Weight
-    if (row['Variant Grams'])             variant.grams = parseInt(row['Variant Grams'], 10);
-    if (row['Variant Weight Unit'])       variant.weight_unit = row['Variant Weight Unit'].toLowerCase();
+    if (row['Variant Grams']) variant.grams = parseInt(row['Variant Grams'], 10);
+    if (row['Variant Weight Unit']) variant.weight_unit = row['Variant Weight Unit'].toLowerCase();
 
     // Shipping & tax
     if (row['Variant Requires Shipping'] !== undefined && row['Variant Requires Shipping'] !== '') {
@@ -214,8 +208,8 @@ function groupRowsIntoProducts(rows) {
     const imgSrc = (row['Image Src'] || '').trim();
     if (imgSrc && !product.images.some((img) => img.src === imgSrc)) {
       const image = { src: imgSrc };
-      if (row['Image Position'])  image.position = parseInt(row['Image Position'], 10);
-      if (row['Image Alt Text'])  image.alt = row['Image Alt Text'];
+      if (row['Image Position']) image.position = parseInt(row['Image Position'], 10);
+      if (row['Image Alt Text']) image.alt = row['Image Alt Text'];
       product.images.push(image);
     }
   }
