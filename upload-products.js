@@ -1,7 +1,7 @@
 require('dotenv').config();
 require('@shopify/shopify-api/adapters/node');
 
-const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
+const { shopifyApi, LATEST_API_VERSION, Session } = require('@shopify/shopify-api');
 const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
@@ -42,9 +42,11 @@ let shopifyInstance = null;
 
 if (!DRY_RUN) {
   shopifyInstance = shopifyApi({
+    apiKey: CLIENT_ID,
     apiSecretKey: CLIENT_SECRET,
+    scopes: ['write_products', 'read_products'],
     apiVersion: LATEST_API_VERSION,
-    isCustomStoreApp: true,
+    isCustomStoreApp: false,
     hostName: storeDomain,
     isEmbeddedApp: false,
     logger: { level: 0 }, // Suppress noisy SDK debug logs
@@ -313,9 +315,14 @@ function validateProducts(products) {
 async function createProduct(productData) {
   const token = await getAccessToken();
 
-  // Create a new session dynamically with the retrieved token
-  const session = shopifyInstance.session.customAppSession(storeDomain);
-  session.accessToken = token;
+  // Create standard Session manually
+  const session = new Session({
+    id: `offline_${storeDomain}`,
+    shop: storeDomain,
+    state: 'state',
+    isOnline: false,
+    accessToken: token,
+  });
 
   const client = new shopifyInstance.clients.Rest({ session });
 
