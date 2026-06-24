@@ -13,17 +13,22 @@ SHOPIFY_CLIENT_ID=xxxxxxxxxxxxxx (replace with real Client Id)
 SHOPIFY_CLIENT_SECRET=xxxxxxxxxxxx (replace with real Client Secret)
  
  
+
+
+-------------------------------------------------------------------------------------
+
+
  
   Reads products from a local CSV file and uploads them to your Shopify (upload-product.js)
  *  store via the Admin REST API. Supports multi-variant products, images,
  *  tags, and automatic handle generation.
- *
+ 
  *  Usage:
  *    node upload-products.js              — Upload all products
  *    node upload-products.js --dry-run    — Parse & validate only (no API calls)
- *
+ 
  * ─── HOW TO GET YOUR ADMIN API ACCESS TOKEN ─────────────────────────────
- *
+ 
  *  1. Log in to your Shopify Admin (https://your-store.myshopify.com/admin)
  *  2. Go to  Settings → Apps and sales channels
  *  3. Click "Develop apps"
@@ -35,7 +40,7 @@ SHOPIFY_CLIENT_SECRET=xxxxxxxxxxxx (replace with real Client Secret)
  *       ✔ read_products
  *  7. Click "Save" → then the "Install app" button
  *  8. Under "API credentials", reveal and copy the Admin API access token
- *
+ 
  *  ⚠️  The token is shown ONLY ONCE — store it in your .env file immediately.
 
 
